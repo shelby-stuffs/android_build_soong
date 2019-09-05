@@ -1145,6 +1145,31 @@ func pathForSource(ctx PathContext, pathComponents ...string) (SourcePath, error
 	return ret, nil
 }
 
+// pathForSourceRelaxed creates a SourcePath from pathComponents, but does not check that it exists.
+// It differs from pathForSource in that the path is allowed to exist outside of the PathContext.
+func pathForSourceRelaxed(ctx PathContext, pathComponents ...string) (SourcePath, error) {
+	p := filepath.Join(pathComponents...)
+	ret := SourcePath{basePath{p, ""}}
+
+	abs, err := filepath.Abs(ret.String())
+	if err != nil {
+		return ret, err
+	}
+	buildroot, err := filepath.Abs(ctx.Config().soongOutDir)
+	if err != nil {
+		return ret, err
+	}
+	if strings.HasPrefix(abs, buildroot) {
+		return ret, fmt.Errorf("source path %s is in output", abs)
+	}
+
+	if pathtools.IsGlob(ret.String()) {
+		return ret, fmt.Errorf("path may not contain a glob: %s", ret.String())
+	}
+
+	return ret, nil
+}
+
 // existsWithDependencies returns true if the path exists, and adds appropriate dependencies to rerun if the
 // path does not exist.
 func existsWithDependencies(ctx PathGlobContext, path SourcePath) (exists bool, err error) {
@@ -1198,6 +1223,31 @@ func PathForArbitraryOutput(ctx PathContext, pathComponents ...string) Path {
 		reportPathError(ctx, err)
 	}
 	return basePath{path: filepath.Join(ctx.Config().OutDir(), p)}
+}
+
+// pathForSourceRelaxed creates a SourcePath from pathComponents, but does not check that it exists.
+// It differs from pathForSource in that the path is allowed to exist outside of the PathContext.
+func pathForSourceRelaxed(ctx PathContext, pathComponents ...string) (SourcePath, error) {
+	p := filepath.Join(pathComponents...)
+	ret := SourcePath{basePath{p, ""}}
+
+	abs, err := filepath.Abs(ret.String())
+	if err != nil {
+		return ret, err
+	}
+	buildroot, err := filepath.Abs(ctx.Config().soongOutDir)
+	if err != nil {
+		return ret, err
+	}
+	if strings.HasPrefix(abs, buildroot) {
+		return ret, fmt.Errorf("source path %s is in output", abs)
+	}
+
+	if pathtools.IsGlob(ret.String()) {
+		return ret, fmt.Errorf("path may not contain a glob: %s", ret.String())
+	}
+
+	return ret, nil
 }
 
 // MaybeExistentPathForSource joins the provided path components and validates that the result
